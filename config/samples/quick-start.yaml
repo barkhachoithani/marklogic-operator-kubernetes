@@ -1,7 +1,7 @@
 apiVersion: marklogic.progress.com/v1
 kind: MarklogicCluster
 metadata:
-  name: single-node
+  name: test-cluster
   annotations: {}
 spec:
   image: "progressofficial/marklogic-db:11.3.0-ubi-rootless"
@@ -17,11 +17,14 @@ spec:
     name: node
     groupConfig:
       name: node
-    resources:
-      requests:
-        memory: "4Gi"
-        cpu: 2000m
-      limits:
-        memory: "4Gi"
-        cpu: 2000m
+    # resources:
+    #   requests:
+    #     memory: "1Gi"
+    #     cpu: 100m
+    #   limits:
+    #     memory: "1Gi"
+    #     cpu: 100m
     isBootstrap: true
+
+# 2. Add an annotation to pause upgrades
+# kubectl annotate marklogiccluster single-node marklogic.com/upgrade-paused=true

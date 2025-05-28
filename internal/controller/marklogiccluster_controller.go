@@ -30,6 +30,7 @@ import (
 
 	"github.com/go-logr/logr"
 	marklogicv1 "github.com/marklogic/marklogic-operator-kubernetes/api/v1"
+	"github.com/marklogic/marklogic-operator-kubernetes/internal/handler"
 	"github.com/marklogic/marklogic-operator-kubernetes/pkg/k8sutil"
 )
 
@@ -56,7 +57,7 @@ type MarklogicClusterReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.14.1/pkg/reconcile
 func (r *MarklogicClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
-	logger.Info(fmt.Sprintf("Reconciling MarklogicGroup %s", req.NamespacedName))
+	logger.V(1).Info(fmt.Sprintf("Reconciling MarklogicCluster %s", req.NamespacedName))
 
 	cc, err := k8sutil.CreateClusterContext(ctx, &req, r.Client, r.Scheme, r.Recorder)
 
@@ -70,6 +71,40 @@ func (r *MarklogicClusterReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		return ctrl.Result{}, err
 	}
 
+	// Get the MarkLogicCluster resource
+	cluster := cc.GetMarkLogicCluster()
+
+	// Handle interactive upgrade workflow using handlers
+	upgradeHandler := handler.NewUpgradeHandler(r.Client, r.Log, r.Recorder)
+	upgradeResult, err := upgradeHandler.HandleUpgradeWorkflow(ctx, cluster)
+	if err != nil {
+		logger.Error(err, "Error in upgrade workflow")
+		return ctrl.Result{}, err
+	}
+
+	// If upgrade workflow is active, prioritize it and skip normal reconciliation
+	if upgradeResult.Requeue || upgradeResult.RequeueAfter > 0 {
+		logger.V(1).Info("Upgrade workflow active, requeuing")
+		return upgradeResult, nil
+	}
+
+	// Only proceed with normal reconciliation if no upgrade workflow is active
+	annotations := cluster.GetAnnotations()
+	upgradeState := ""
+	if annotations != nil {
+		upgradeState = annotations[handler.AnnotationUpgradeState]
+	}
+
+	// Skip normal reconciliation during upgrade states
+	if upgradeState != "" && upgradeState != string(handler.UpgradeStateIdle) &&
+		upgradeState != string(handler.UpgradeStateCompleted) &&
+		upgradeState != string(handler.UpgradeStateFailed) &&
+		upgradeState != string(handler.UpgradeStateCancelled) {
+		logger.V(1).Info("Skipping normal reconciliation during upgrade", "upgradeState", upgradeState)
+		return ctrl.Result{}, nil
+	}
+
+	// Continue with normal reconciliation
 	result, err := cc.ReconsileMarklogicClusterHandler()
 
 	if err != nil {

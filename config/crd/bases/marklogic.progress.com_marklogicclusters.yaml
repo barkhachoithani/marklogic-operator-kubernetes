@@ -11027,9 +11027,6 @@ spec:
             description: MarklogicClusterStatus defines the observed state of MarklogicCluster
             properties:
               conditions:
-                description: |-
-                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-                  Important: Run "make" to regenerate code after modifying this file
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -11085,6 +11082,22 @@ spec:
                   - type
                   type: object
                 type: array
+              currentImage:
+                description: CurrentImage tracks the currently deployed image for
+                  upgrade detection
+                type: string
+              lastUpgradeTime:
+                description: LastUpgradeTime tracks when the last upgrade was completed
+                format: date-time
+                type: string
+              upgradePaused:
+                description: |-
+                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                type: boolean
+              upgradeState:
+                description: UpgradeState tracks the current upgrade workflow state
+                type: string
             type: object
         type: object
     served: true

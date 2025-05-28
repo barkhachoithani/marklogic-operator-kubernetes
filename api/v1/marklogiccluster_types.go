@@ -122,7 +122,14 @@ type Tls struct {
 type MarklogicClusterStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	UpgradePaused bool               `json:"upgradePaused,omitempty"`
+	Conditions    []metav1.Condition `json:"conditions,omitempty"`
+	// CurrentImage tracks the currently deployed image for upgrade detection
+	CurrentImage string `json:"currentImage,omitempty"`
+	// UpgradeState tracks the current upgrade workflow state
+	UpgradeState string `json:"upgradeState,omitempty"`
+	// LastUpgradeTime tracks when the last upgrade was completed
+	LastUpgradeTime *metav1.Time `json:"lastUpgradeTime,omitempty"`
 }
 
 //+kubebuilder:object:root=true

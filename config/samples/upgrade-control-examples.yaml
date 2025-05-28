@@ -1,0 +1,101 @@
+# Example upgrade control resources for MarkLogic Kubernetes Operator
+
+# 1. Pause an ongoing upgrade
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterUpgrade
+metadata:
+  name: cluster-pause-maintenance
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  action: pause
+  reason: "Scheduled maintenance window - pausing for system checks"
+  requestedBy: "ops-team@company.com"
+---
+# 2. Resume a paused upgrade
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterUpgrade
+metadata:
+  name: cluster-resume-upgrade
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  action: resume
+  reason: "Maintenance complete, safe to proceed with upgrade"
+  requestedBy: "ops-team@company.com"
+---
+# 3. Cancel an upgrade
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterUpgrade
+metadata:
+  name: cluster-cancel-upgrade
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  action: cancel
+  reason: "Critical security patch needed before upgrade"
+  requestedBy: "security-team@company.com"
+---
+# 4. Retry a failed upgrade
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterUpgrade
+metadata:
+  name: cluster-retry-upgrade
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  action: retry
+  reason: "Network connectivity issue resolved"
+  requestedBy: "ops-team@company.com"
+---
+# 5. Force proceed with upgrade (override warnings)
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterUpgrade
+metadata:
+  name: cluster-force-proceed
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  action: force-proceed
+  force: true
+  reason: "Precheck warnings reviewed and approved by architecture team"
+  requestedBy: "architect@company.com"
+---
+# 6. Graceful rollback to previous version
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterRollback
+metadata:
+  name: cluster-rollback-graceful
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  strategy: graceful
+  targetImage: "marklogicdb/marklogic-db:11.2.0"
+  reason: "Performance regression detected in new version"
+  requestedBy: "ops-team@company.com"
+---
+# 7. Immediate rollback (emergency)
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterRollback
+metadata:
+  name: cluster-rollback-immediate
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  strategy: immediate
+  targetImage: "marklogicdb/marklogic-db:11.2.0"
+  reason: "Critical bug causing data corruption - emergency rollback"
+  requestedBy: "incident-commander@company.com"
+---
+# 8. Manual rollback (requires operator intervention)
+apiVersion: marklogic.progress.com/v1
+kind: MarklogicClusterRollback
+metadata:
+  name: cluster-rollback-manual
+  namespace: default
+spec:
+  clusterName: my-marklogic-cluster
+  strategy: manual
+  targetImage: "marklogicdb/marklogic-db:11.2.0"
+  reason: "Complex configuration changes require manual verification"
+  requestedBy: "dba-team@company.com"
