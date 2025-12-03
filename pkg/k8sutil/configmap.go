@@ -6,6 +6,7 @@ import (
 	"embed"
 	"strings"
 
+	"github.com/cisco-open/k8s-objectmatcher/patch"
 	"github.com/marklogic/marklogic-operator-kubernetes/pkg/result"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,9 +40,14 @@ func (oc *OperatorContext) ReconcileConfigMap() result.ReconcileResult {
 				return result.Error(err)
 			}
 			logger.Info("MarkLogic scripts configmap creation is successful")
-			// result.Continue()
 		} else {
 			logger.Error(err, "MarkLogic scripts configmap creation is failed")
+			return result.Error(err)
+		}
+	} else {
+		// ConfigMap exists, check if it needs to be updated
+		desiredConfigMap := oc.generateConfigMapDef(objectMeta, marklogicServerAsOwner(cr))
+		if err := oc.updateConfigMapIfNeeded(configmap, desiredConfigMap, "MarkLogic ConfigMap"); err != nil {
 			return result.Error(err)
 		}
 	}
@@ -73,14 +79,50 @@ func (oc *OperatorContext) ReconcileFluentBitConfigMap() result.ReconcileResult 
 				return result.Error(err)
 			}
 			logger.Info("Fluent Bit configmap creation is successful")
-			// result.Continue()
 		} else {
 			logger.Error(err, "Fluent Bit configmap creation is failed")
+			return result.Error(err)
+		}
+	} else {
+		// ConfigMap exists, check if it needs to be updated
+		desiredConfigMap := oc.generateFluentBitDef(objectMeta, marklogicServerAsOwner(cr))
+		if err := oc.updateConfigMapIfNeeded(configmap, desiredConfigMap, "Fluent Bit ConfigMap"); err != nil {
 			return result.Error(err)
 		}
 	}
 
 	return result.Continue()
+}
+
+// updateConfigMapIfNeeded updates a ConfigMap if the desired state differs from current state
+func (oc *OperatorContext) updateConfigMapIfNeeded(current, desired *corev1.ConfigMap, name string) error {
+	logger := oc.ReqLogger
+	client := oc.Client
+
+	patchDiff, err := patch.DefaultPatchMaker.Calculate(current, desired,
+		patch.IgnoreStatusFields(),
+		patch.IgnoreVolumeClaimTemplateTypeMetaAndStatus(),
+		patch.IgnoreField("kind"))
+	if err != nil {
+		logger.Error(err, "Error calculating patch for "+name)
+		return err
+	}
+
+	if !patchDiff.IsEmpty() {
+		logger.Info(name + " data has changed, updating it")
+		current.Data = desired.Data
+		if err := patch.DefaultAnnotator.SetLastAppliedAnnotation(current); err != nil {
+			logger.Error(err, "Failed to set last applied annotation for "+name)
+		}
+		err = client.Update(oc.Ctx, current)
+		if err != nil {
+			logger.Error(err, name+" update failed")
+			return err
+		}
+		logger.Info(name + " update is successful")
+	}
+
+	return nil
 }
 
 func (oc *OperatorContext) generateFluentBitDef(configMapMeta metav1.ObjectMeta, ownerRef metav1.OwnerReference) *corev1.ConfigMap {
@@ -165,10 +207,14 @@ func (oc *OperatorContext) getFluentBitData() map[string]string {
   log_level: info
   daemon: off
   parsers_file: parsers.yaml
+  http_server: on
+  http_listen: 127.0.0.1
+  http_port: 2020
+  hot_reload: on
+  storage.metrics: on
 
 pipeline:
   inputs:`
-	// Add INPUT sections based on enabled log types
 	if strings.TrimSpace(oc.MarklogicGroup.Spec.LogCollection.Inputs) != "" {
 		fluentBitData["fluent-bit.yaml"] += "\n" + normalizeYAMLIndentation(oc.MarklogicGroup.Spec.LogCollection.Inputs, 4, 6)
 	} else {
